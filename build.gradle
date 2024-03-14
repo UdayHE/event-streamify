@@ -63,12 +63,4 @@ micronaut {
     }
 }
 
-tasks.named("dockerfile") {
-    baseImage("eclipse-temurin:21-jre-jammy")
-}
-
-tasks.named("dockerfileNative") {
-    jdkVersion = "21"
-}
-
 

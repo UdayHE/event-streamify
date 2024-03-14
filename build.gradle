@@ -28,6 +28,8 @@ dependencies {
     implementation("io.micronaut:micronaut-management")
     //For websocket
     implementation("io.micronaut:micronaut-websocket")
+    //For SSE Load test
+    implementation("org.apache.httpcomponents:httpclient:4.5.14")
 }
 
 

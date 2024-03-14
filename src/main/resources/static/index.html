@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <title>SSE/WS Client</title>
+    <style>
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 12px 20px;
+            box-sizing: border-box;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            background-color: #f8f8f8;
+            resize: none;
+        }
+    </style>
+</head>
+<body>
+<h1>Server-Sent Events (SSE) Client</h1>
+
+<!-- Section for subscribing to and unsubscribing from a channel -->
+<div>
+    <label for="channelName">Channel:</label>
+    <input type="text" id="channelName" placeholder="Enter Channel" />
+    <button id="connectBtn">Connect</button>
+    <button id="disconnectBtn">Disconnect</button>
+    <!-- Unregister button -->
+    <div id="status">Status: <span style="color: red;"> Disconnected</span></div>
+    <div id="messages"></div>
+    <!-- Container for messages -->
+</div>
+
+<!-- Section for publishing an event -->
+<div>
+    <h2>Publish Event</h2>
+    <label for="publishChannel">Channel:</label>
+    <input type="text" id="publishChannel" placeholder="Enter Channel" /><br />
+    <label for="messageText">Message:</label>
+    <textarea id="messageText" placeholder="Enter message JSON"></textarea>
+    <button id="publishBtn">Publish Event</button><br />
+    <br />
+    <input type="text" id="sseConnectionStatus" placeholder="Enter Channel" />
+    <button id="channelStatusBtnV1">Check Channel Status V1</button>
+    <button id="channelStatusBtn">Check Channel Status V2</button> <br />
+    <div id="channelStatusDiv"></div>
+</div>
+<hr />
+
+<h1>WebSocket Client</h1>
+<div>
+    <label for="wschannel">Channel:</label>
+    <input type="text" id="wschannel" placeholder="Enter channel" />
+    <button onclick="registerWebSocket()">Connect</button>
+    <button onclick="closeWebSocket()">Disconnect</button>
+    <div id="wsStatus">Status: <span style="color: red;"> Disconnected</span></div>
+</div>
+<div id="wsMessageContainer"></div>
+<h2>Send Message</h2>
+<div>
+    <label for="channelToSend">Channel:</label>
+    <input type="text" id="channelToSend" placeholder="Enter channel" />
+</div>
+<div>
+    <label for="wsmessage">Message:</label>
+    <textarea id="wsmessage">
+{
+    "payload": {
+        "message": "message goes here"
+    }
+}
+
+            </textarea>
+</div>
+<div>
+    <button onclick="sendMessage()">Send Message</button>
+</div>
+<script>
+    let socket;
+
+    function registerWebSocket() {
+        const channel = document.getElementById("wschannel").value;
+
+        if (channel) {
+            // Open WebSocket connection
+            socket = new WebSocket(`ws://${window.location.hostname}:${window.location.port}/ws/${channel}`);
+
+            // Define WebSocket event listeners
+            socket.onopen = (event) => {
+                console.log("WebSocket connection opened:", event);
+                const statusContainer = document.getElementById("wsStatus");
+                statusContainer.innerHTML = `Status: <span style="color: green; "> Connected</span>`;
+            };
+
+            socket.onmessage = (event) => {
+                console.log("WebSocket message received:", event);
+                const messageContainer = document.getElementById("wsMessageContainer");
+                messageContainer.innerHTML += `<p>${event.data}</p>`;
+            };
+
+            socket.onclose = (event) => {
+                console.log("WebSocket connection closed:", event);
+            };
+
+            socket.onerror = (event) => {
+                console.error("WebSocket error:", event);
+            };
+        } else {
+            console.error("Please enter channel.");
+        }
+    }
+
+    function closeWebSocket() {
+        if (socket) {
+            socket.close();
+            console.log("WebSocket connection closed.");
+            const statusContainer = document.getElementById("wsStatus");
+            statusContainer.innerHTML = `Status: <span style="color: red; "> Disconnected</span>`;
+        } else {
+            console.error("WebSocket connection not established.");
+        }
+    }
+
+    function sendMessage() {
+        const hostAndPort = `${window.location.hostname}:${window.location.port}`;
+        const message = document.getElementById("wsmessage").value;
+        const channel = document.getElementById("channelToSend").value;
+        if (socket && message) {
+            const messageObj = {
+                payload: { message },
+                channel: channel,
+                serverIp: `http://${hostAndPort}/event-streamify`,
+            };
+
+            fetch(`http://${hostAndPort}/event-streamify/websocket/send`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(messageObj),
+            })
+                .then((response) => response)
+                .then((data) => console.log("Response from server:", data))
+                .catch((error) => console.error("Error:", error));
+        } else {
+            console.error("WebSocket connection not established or message is empty.");
+        }
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+        const connectBtn = document.getElementById("connectBtn");
+        const disconnectBtn = document.getElementById("disconnectBtn"); // Get the disconnect button
+        const publishBtn = document.getElementById("publishBtn");
+        const statusDiv = document.getElementById("status");
+        const messagesDiv = document.getElementById("messages"); // Get the messages div
+        const channelStatusBtn = document.getElementById("channelStatusBtn");
+        const channelStatusBtnV1 = document.getElementById("channelStatusBtnV1");
+        const sseConnectionStatus = document.getElementById("sseConnectionStatus");
+        let eventSource;
+        let intervalId;
+
+        function callHeartBeatAPI(channel, timeInterval) {
+            intervalId = setInterval(function () {
+                const baseUrl = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+                var apiUrl = `${baseUrl}/event-streamify/sse/heartbeat/${channel}`;
+
+                // Make the API request
+                fetch(apiUrl)
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Network response was not ok");
+                        }
+                        return response;
+                    })
+                    .then((data) => {
+                        // Handle the response data if needed
+                        console.log(data);
+                    })
+                    .catch((error) => {
+                        console.error("There was a problem with the fetch operation:", error);
+                    });
+            }, timeInterval);
+        }
+
+        function stopAPI() {
+            clearInterval(intervalId);
+        }
+
+        const connect = (channelName) => {
+            if (eventSource) {
+                eventSource.close();
+            }
+            const baseUrl = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+            var url = `${baseUrl}/event-streamify/sse/register/${channelName}`;
+            document.cookie = `sse-channel=${channelName}`;
+<!--            callHeartBeatAPI(channelName, 10000); //heartbeat API call-->
+            eventSource = initializeSSE(url);
+        };
+
+        const checkConnection = (channelName, apiVersion) => {
+            const baseUrl = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+            if (apiVersion === "v1") {
+                url = `${baseUrl}/event-streamify/sse/status/${channelName}`;
+            } else {
+                url = `${baseUrl}/event-streamify/sse/v2/status/${channelName}`;
+            }
+
+            document.cookie = `sse-channel=${channelName}`;
+            fetch(url, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            })
+                .then((response) => response.text())
+                .then((data) => {
+                    console.log("Event published:", data);
+                    const channelStatusDiv = document.getElementById("channelStatusDiv");
+                    channelStatusDiv.innerHTML = `Status: <span>${data}</span>`;
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                });
+        };
+
+        channelStatusBtn.addEventListener("click", function () {
+            const channelName = document.getElementById("sseConnectionStatus").value;
+            checkConnection(channelName, "v2");
+        });
+
+         channelStatusBtnV1.addEventListener("click", function () {
+            const channelName = document.getElementById("sseConnectionStatus").value;
+            checkConnection(channelName, "v1");
+        });
+
+        connectBtn.addEventListener("click", function () {
+            const channelName = document.getElementById("channelName").value;
+            connect(channelName);
+        });
+
+        // Event listener for the disconnect button
+        disconnectBtn.addEventListener("click", function () {
+            if (eventSource) {
+                eventSource.close();
+                statusDiv.innerHTML = 'Status: <span style="color: red; "> Disconnected</span>';
+<!--                setTimeout(stopAPI, 500);-->
+                console.log("SSE connection closed.");
+            }
+        });
+
+        const defaultJson = JSON.stringify(
+            {
+                payload: {
+                    message: "message goes here",
+                },
+            },
+            null,
+            2
+        ); // Use null and 2 for pretty formatting
+
+        document.getElementById("messageText").value = defaultJson;
+
+        function initializeSSE(url) {
+            let eventSource = new EventSource(url);
+
+            eventSource.onopen = function (event) {
+                console.log("Connection opened.", event);
+                statusDiv.innerHTML = 'Status: <span style="color: green; "> Connected</span>';
+            };
+
+            eventSource.onmessage = function (event) {
+                console.log("New message:", event.data);
+                messagesDiv.innerHTML += `${event.data}<br>`; // Append new message with a line break
+            };
+
+            eventSource.onerror = function (event) {
+                if (eventSource.readyState == EventSource.CLOSED) {
+                    console.log("Connection was closed.", event);
+                    statusDiv.textContent = "Status: Disconnected";
+                } else {
+                    console.log("An error occurred.", event);
+                    statusDiv.textContent = "Status: Error";
+                }
+            };
+
+            function closeEventSource() {
+                if (eventSource) {
+                    eventSource.close();
+                    console.log("EventSource closed.");
+                }
+            }
+
+            return eventSource;
+        }
+
+        window.onbeforeunload = function () {
+            closeEventSource();
+        };
+        publishBtn.addEventListener("click", function () {
+            const channel = document.getElementById("publishChannel").value;
+            const messageJson = document.getElementById("messageText").value;
+            try {
+                const message = JSON.parse(messageJson);
+                publishEvent(channel, message);
+            } catch (e) {
+                console.error("Invalid JSON:", e.message);
+                // Handle invalid JSON input
+            }
+        });
+
+        function publishEvent(channel, message) {
+            const baseUrl = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+            var url = `${baseUrl}/event-streamify/sse/emit-event/${channel}`;
+            document.cookie = `sse-channel=${channel}`;
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(message),
+            })
+                .then((response) => response)
+                .then((data) => {
+                    console.log("Event published:", data);
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                });
+        }
+    });
+</script>
+</body>
+</html>

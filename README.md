@@ -1,4 +1,4 @@
-Steps to run on local
+<H2> Steps to run on local </H2>
 1. Clone the repository
    git clone https://github.com/UdayHE/event-streamify.git
 2. IDE : Intellij Idea CE

@@ -7,26 +7,24 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.group.ChannelGroup;
-import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.util.concurrent.GlobalEventExecutor;
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * @author udayhegde
  */
 @Factory
+@Slf4j
 public class NettyFactory {
 
     @Bean
     @Singleton
     public ServerBootstrap nettyServerBootstrap(ChannelInitializer<SocketChannel> channelInitializer) {
-        ChannelGroup channelGroup = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
-
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(new NioEventLoopGroup(), new NioEventLoopGroup())
                 .channel(NioServerSocketChannel.class)
@@ -38,7 +36,7 @@ public class NettyFactory {
     @Bean
     @Singleton
     public ChannelInitializer<SocketChannel> channelInitializer(ChannelGroup channelGroup) {
-        return new ChannelInitializer<SocketChannel>() {
+        return new ChannelInitializer<>() {
             @Override
             protected void initChannel(SocketChannel ch) {
                 ch.pipeline().addLast(new HttpServerCodec());
@@ -57,13 +55,13 @@ public class NettyFactory {
         @Override
         public void channelActive(ChannelHandlerContext ctx) {
             channelGroup.add(ctx.channel());
-            System.out.println("New connection added. Total active connections: " + channelGroup.size());
+            log.info("New connection added. Total active connections: {}", channelGroup.size());
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
             channelGroup.remove(ctx.channel());
-            System.out.println("Connection closed. Total active connections: " + channelGroup.size());
+            log.info("Connection closed. Total active connections: {}", channelGroup.size());
         }
     }
 }

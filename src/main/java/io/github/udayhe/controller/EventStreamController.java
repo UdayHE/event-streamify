@@ -43,9 +43,7 @@ public class EventStreamController {
     @Produces(MediaType.TEXT_EVENT_STREAM)
     Flowable<Event<Message>> registerV1(@PathVariable String channel) {
         log.info("In SSE register. channel:{}", channel);
-        Flowable<Event<Message>> flowableEventMessage = eventStreamService.register(channel).map(Event::of);
-        log.info("In SSE register. flowableEventMessage:{}", flowableEventMessage);
-        return flowableEventMessage;
+        return eventStreamService.register(channel).map(Event::of);
     }
 
 
@@ -77,9 +75,7 @@ public class EventStreamController {
 
     @Get("/connections/count")
     public HttpResponse<Map<String, Number>> getCount() {
-        Map<String, Number> output = eventStreamService.getCount();
-        log.info("In getCount(), output:{}", output);
-        return ok(output);
+        return ok(eventStreamService.getCount());
     }
 
 

@@ -1,8 +1,8 @@
 FROM openjdk:21-jdk
 
-RUN  mkdir -p /etc/benefitalign/event-streamify
+RUN  mkdir -p /etc/udayhegde/event-streamify
 
-WORKDIR /etc/benefitalign/event-streamify
+WORKDIR /etc/udayhegde/event-streamify
 
 ADD build/libs/*.jar ./
 
